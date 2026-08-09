@@ -1,5 +1,7 @@
 package cn.epicmc.client;
 
+import cn.epicmc.BlockFront;
+import cn.epicmc.client.network.ConfigClient;
 import net.fabricmc.api.ClientModInitializer;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.world.SelectWorldScreen;
@@ -10,6 +12,23 @@ public class BlockFrontClient implements ClientModInitializer {
 		if (MinecraftClient.getInstance().isDemo()){
 			MinecraftClient.getInstance().setScreen(new SelectWorldScreen(null));
 		}
-		// This entrypoint is suitable for setting up client-specific logic, such as rendering.
+
+		// 初始化配置客户端
+		BlockFront.LOGGER.info("Initializing BlockFront Client");
+
+		// 从环境变量或系统属性读取配置服务器地址
+		String configHost = System.getProperty("blockfront.config.host", "127.0.0.1");
+		int configPort = Integer.parseInt(System.getProperty("blockfront.config.port", "25555"));
+
+		ConfigClient.getInstance().setConfigServer(configHost, configPort);
+
+		// 异步同步配置（不阻塞游戏启动）
+		ConfigClient.getInstance().syncAll().thenAccept(success -> {
+			if (success) {
+				BlockFront.LOGGER.info("Config synced successfully");
+			} else {
+				BlockFront.LOGGER.warn("Failed to sync config, using default settings");
+			}
+		});
 	}
 }
