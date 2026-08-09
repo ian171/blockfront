@@ -30,5 +30,10 @@ public class BlockFrontClient implements ClientModInitializer {
 				BlockFront.LOGGER.warn("Failed to sync config, using default settings");
 			}
 		});
+
+		// 初始化 UDP HUD 客户端（固定端口 25566）
+		cn.epicmc.client.hud.network.UdpHudClient.getInstance().start();
+
+		BlockFront.LOGGER.info("UDP HUD client initialized on port 25566");
 	}
 }

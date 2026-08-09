@@ -38,3 +38,7 @@ hs_err_*.log
 replay_*.log
 *.hprof
 *.jfr
+/start-server.bat
+/start-server.sh
+/start-hud-server.sh
+/start-hud-server.bat

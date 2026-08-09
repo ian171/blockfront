@@ -7,7 +7,9 @@
 		"GameOptionScreen",
 		"MultiplePlayers",
 		"SinglePlayerScreen",
-		"TitleScreen"
+		"TitleScreen",
+		"InGameHudMixin",
+		"LivingEntityMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

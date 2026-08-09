@@ -29,6 +29,7 @@ public class ConfigServerExample {
     static {
         // 添加示例服务器
         servers.add(new ServerEntry("MagicPixel","mc.epicmc.cn",25565));
+        servers.add(new ServerEntry("Localhost","127.0.0.1",25565));
     }
 
     public static void main(String[] args) {
