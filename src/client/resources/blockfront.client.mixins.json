@@ -10,6 +10,7 @@
 		"TitleScreen",
 		"InGameHudMixin",
 		"LivingEntityMixin",
+		"MinecraftClientMixin",
 		"ChatHudMixin"
 	],
 	"injectors": {
