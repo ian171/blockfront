@@ -107,7 +107,19 @@ public final class BattlefieldHudRenderer {
         String defense = "日军";
         context.drawText(font, Text.literal(attack), x + 33, y + 10, OperationHudTheme.ATTACK_BRIGHT, true);
         context.drawText(font, Text.literal(defense), x + width - 33 - font.getWidth(defense), y + 10, OperationHudTheme.DEFENSE_BRIGHT, true);
-        String phase = DATA.getGameMode().isBlank() ? "上海 1937 · 行动模式" : DATA.getGameMode();
+        //String phase = DATA.getGameMode().isBlank() ? "上海 1937 · 行动模式" : DATA.getGameMode();
+        String phase;
+        switch (DATA.getGameModeType()){
+            case ACTION -> {
+                phase = "上海 1937 · 行动模式";
+            }
+            case CONTEST -> {
+                phase = "上海 1937 · 夺点模式";
+            }
+            default -> {
+                phase = DATA.getGameModeType().getString();
+            }
+        }
         centered(context, font, phase, screenWidth / 2, y + 9, OperationHudTheme.TEXT, true);
         String wave = "第 " + DATA.getWave() + " 波  /  " + Math.max(1, DATA.getMaxWaves());
         centered(context, font, wave, screenWidth / 2, y + 29, OperationHudTheme.TEXT_DIM, false);

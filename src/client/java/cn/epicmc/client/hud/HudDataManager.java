@@ -37,7 +37,9 @@ public class HudDataManager {
     private long statusMessageTime = 0;
 
     // 游戏状态
+    @Deprecated
     private String gameMode = "";
+    private GameModeType gameModeType;
     private int remainingTime = 0;  // 剩余时间（秒）
     private int score = 0;          // 个人分数
     private int tickets;
@@ -186,13 +188,19 @@ public class HudDataManager {
     }
 
     // ========== 游戏状态 ==========
-
+    @Deprecated
     public void setGameMode(String gameMode) {
         this.gameMode = gameMode;
     }
-
+    public void setGameMode(GameModeType gameMode){
+        this.gameModeType = gameMode;
+    }
+    @Deprecated
     public String getGameMode() {
         return gameMode;
+    }
+    public GameModeType getGameModeType(){
+        return gameModeType;
     }
 
     public void setRemainingTime(int seconds) {

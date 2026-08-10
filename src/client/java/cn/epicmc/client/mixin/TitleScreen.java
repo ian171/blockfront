@@ -33,7 +33,7 @@ public class TitleScreen {
         cir.setReturnValue(false);
     }
     @Redirect(method = "initWidgetsNormal", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screen/TitleScreen;addDrawableChild(Lnet/minecraft/client/gui/Element;)Lnet/minecraft/client/gui/Element;"))
-    private Element initWidgetsNormal(net.minecraft.client.gui.screen.TitleScreen instance, Element element) throws URISyntaxException {
+    private Element initWidgetsNormal(net.minecraft.client.gui.screen.TitleScreen instance, Element element) {
         //MinecraftClient.getInstance().setScreen(new ServerLinksScreen(null, new ServerLinks(List.of(ServerLinks.Entry.create(Text.empty(), new URI("mc.epicmc.cn"))))));
         MinecraftClient.getInstance().setScreen(new ModMultiplayerScreen(null));
         return element;
