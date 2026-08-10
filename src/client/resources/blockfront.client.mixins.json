@@ -1,0 +1,20 @@
+{
+	"required": true,
+	"package": "cn.epicmc.client.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"client": [
+		"ExampleClientMixin",
+		"GameOptionScreen",
+		"MultiplePlayers",
+		"SinglePlayerScreen",
+		"TitleScreen",
+		"InGameHudMixin",
+		"LivingEntityMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}
