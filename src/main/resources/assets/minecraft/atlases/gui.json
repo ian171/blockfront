@@ -1,0 +1,9 @@
+﻿{
+  "sources": [
+    {
+      "type": "directory",
+      "source": "blockfront:gui/sprites",
+      "prefix": ""
+    }
+  ]
+}

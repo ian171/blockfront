@@ -10,7 +10,9 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
+import net.minecraft.text.Style;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 
 import java.util.Comparator;
 import java.util.HashMap;
@@ -27,6 +29,20 @@ public final class BattlefieldHudRenderer {
     private static final Map<String, OperationHudAnimation> CAPTURE_ANIMATIONS = new HashMap<>();
     private static final OperationHudAnimation HEALTH_ANIMATION = new OperationHudAnimation();
     private static final OperationHudAnimation TICKET_ANIMATION = new OperationHudAnimation();
+    private static final Identifier PANEL_TEXTURE = Identifier.of("blockfront", "panel");
+    private static final Identifier BAR_BG_TEXTURE = Identifier.of("blockfront", "bar_bg");
+    private static final Identifier BAR_FG_TEXTURE = Identifier.of("blockfront", "bar_fg");
+    private static final Identifier ICON_FLAG = Identifier.of("blockfront", "icon_flag");
+    private static final Identifier ICON_SHIELD = Identifier.of("blockfront", "icon_shield");
+    private static final Identifier ICON_SOLDIER = Identifier.of("blockfront", "icon_soldier");
+    private static final Identifier ICON_ARMOR = Identifier.of("blockfront", "icon_armor");
+    private static final Identifier ICON_CROSS = Identifier.of("blockfront", "icon_cross");
+    private static final Identifier PUHUITI_FONT = Identifier.of("blockfront", "puhuiti");
+    private static final Style PUHUITI_STYLE = Style.EMPTY.withFont(PUHUITI_FONT);
+
+    private static Text text(String string) {
+        return net.minecraft.text.Text.literal(string).setStyle(PUHUITI_STYLE);
+    }
     private static float pulse;
 
     private BattlefieldHudRenderer() { }
@@ -39,11 +55,18 @@ public final class BattlefieldHudRenderer {
 
         int width = context.getScaledWindowWidth();
         int height = context.getScaledWindowHeight();
-        renderBattleHeader(context, width);
-        renderCaptureStrip(context, width);
-        renderKillFeed(context, width);
-        renderPlayerPanel(context, height);
-        renderWeaponPanel(context, width, height);
+        
+        float topScale = 0.85f;
+        context.getMatrices().push();
+        context.getMatrices().scale(topScale, topScale, 1.0f);
+        int scaledWidth = Math.round(width / topScale);
+        renderBattleHeader(context, scaledWidth);
+        renderCaptureStrip(context, scaledWidth);
+        context.getMatrices().pop();
+        
+        renderKillFeed(context, width, height);
+        renderPlayerPanel(context, width, height);
+        // 武器面板已移除，全权交由 TACZ 渲染
         renderObjectiveOverlay(context, width, height);
         renderStatusMessage(context, width, height);
     }
@@ -64,9 +87,9 @@ public final class BattlefieldHudRenderer {
      */
     private static float calculateScale(int screenHeight) {
         final float BASE_HEIGHT = 720.0f;
-        final float MIN_SCALE = 0.7f;
-        final float MAX_SCALE = 1.3f;
-        float scale = screenHeight / BASE_HEIGHT;
+        final float MIN_SCALE = 0.6f;
+        final float MAX_SCALE = 1.1f;
+        float scale = (screenHeight / BASE_HEIGHT) * 0.85f;
         return Math.clamp(scale, MIN_SCALE, MAX_SCALE);
     }
 
@@ -77,14 +100,14 @@ public final class BattlefieldHudRenderer {
         int y = height - 105;
         panel(context, x, y, panelWidth, 72, 0xDE170C0C, OperationHudTheme.DANGER);
         drawIcon(context, x + 14, y + 16, Icon.CROSS, OperationHudTheme.DANGER);
-        context.drawText(font, Text.literal("你已倒地"), x + 38, y + 12, OperationHudTheme.TEXT, true);
+        context.drawText(font, text("你已倒地"), x + 38, y + 12, OperationHudTheme.TEXT, true);
         String killer = "击倒者  " + DownedManager.killerName();
-        context.drawText(font, Text.literal(killer), x + 38, y + 28, OperationHudTheme.DANGER, true);
+        context.drawText(font, text(killer), x + 38, y + 28, OperationHudTheme.DANGER, true);
         String weapon = "使用 " + DownedManager.weaponName();
-        context.drawText(font, Text.literal(weapon), x + 38, y + 43, OperationHudTheme.TEXT_DIM, false);
+        context.drawText(font, text(weapon), x + 38, y + 43, OperationHudTheme.TEXT_DIM, false);
         String timer = DownedManager.remainingSeconds() + " 秒";
-        context.drawText(font, Text.literal(timer), x + panelWidth - 16 - font.getWidth(timer), y + 14, OperationHudTheme.TEXT, true);
-        context.drawText(font, Text.literal("等待医疗兵救援"), x + panelWidth - 16 - font.getWidth("等待医疗兵救援"), y + 30, OperationHudTheme.TEXT_DIM, false);
+        context.drawText(font, text(timer), x + panelWidth - 16 - font.getWidth(text(timer)), y + 14, OperationHudTheme.TEXT, true);
+        context.drawText(font, text("等待医疗兵救援"), x + panelWidth - 16 - font.getWidth(text("等待医疗兵救援")), y + 30, OperationHudTheme.TEXT_DIM, false);
         int barX = x + 14;
         int barY = y + 58;
         progressBar(context, barX, barY, panelWidth - 28, 6, DownedManager.skipProgress(), OperationHudTheme.DANGER);
@@ -119,8 +142,8 @@ public final class BattlefieldHudRenderer {
         int tickets = Math.round(TICKET_ANIMATION.update(DATA.getTickets(), 0.15f));
         String attack = "国军  " + tickets;
         String defense = "日军";
-        context.drawText(font, Text.literal(attack), x + 33, y + 10, OperationHudTheme.ATTACK_BRIGHT, true);
-        context.drawText(font, Text.literal(defense), x + width - 33 - font.getWidth(defense), y + 10, OperationHudTheme.DEFENSE_BRIGHT, true);
+        context.drawText(font, text(attack), x + 33, y + 10, OperationHudTheme.ATTACK_BRIGHT, true);
+        context.drawText(font, text(defense), x + width - 33 - font.getWidth(text(defense)), y + 10, OperationHudTheme.DEFENSE_BRIGHT, true);
         //String phase = DATA.getGameMode().isBlank() ? "上海 1937 · 行动模式" : DATA.getGameMode();
         String phase;
         GameModeType modeType = DATA.getGameModeType();
@@ -158,9 +181,9 @@ public final class BattlefieldHudRenderer {
             if (contested && ((int) (pulse * 8) & 1) == 0) color = OperationHudTheme.CAPTURING;
             panel(context, x, y, cardWidth, 38, OperationHudTheme.PANEL_SOFT, color);
             drawIcon(context, x + 7, y + 7, Icon.FLAG, color);
-            context.drawText(font, Text.literal(point.getId()), x + 23, y + 6, color, true);
+            context.drawText(font, text(point.getId()), x + 23, y + 6, color, true);
             String shortName = abbreviate(point.getName(), 9);
-            context.drawText(font, Text.literal(shortName), x + 7, y + 18, OperationHudTheme.TEXT_DIM, false);
+            context.drawText(font, text(shortName), x + 7, y + 18, OperationHudTheme.TEXT_DIM, false);
             int barX = x + 7;
             int barY = y + 30;
             int barWidth = cardWidth - 14;
@@ -170,12 +193,12 @@ public final class BattlefieldHudRenderer {
             context.fill(barX, barY, barX + Math.round(barWidth * animated), barY + 33, withAlpha(color, 220));
             if (point.getCapturingPlayers() > 0) {
                 String count = "+" + point.getCapturingPlayers();
-                context.drawText(font, Text.literal(count), x + cardWidth - 7 - font.getWidth(count), y + 6, OperationHudTheme.TEXT, true);
+                context.drawText(font, text(count), x + cardWidth - 7 - font.getWidth(text(count)), y + 6, OperationHudTheme.TEXT, true);
             }
         }
     }
 
-    private static void renderPlayerPanel(DrawContext context, int screenHeight) {
+    private static void renderPlayerPanel(DrawContext context, int screenWidth, int screenHeight) {
         TextRenderer font = CLIENT.textRenderer;
         // 根据屏幕高度计算缩放因子
         float scale = calculateScale(screenHeight);
@@ -186,8 +209,8 @@ public final class BattlefieldHudRenderer {
         int width = Math.round(baseWidth * scale);
         int height = Math.round(baseHeight * scale);
         int margin = Math.round(baseMargin * scale);
-        int x = margin;
-        int y = screenHeight - height - margin;
+        int x = screenWidth - width - margin;
+        int y = margin; // 移动到右上角
 
         panel(context, x, y, width, height, OperationHudTheme.PANEL, OperationHudTheme.ATTACK);
 
@@ -200,7 +223,7 @@ public final class BattlefieldHudRenderer {
         context.getMatrices().scale(scale, scale, 1.0f);
         int scaledX = Math.round((x + padding + iconSize + Math.round(12 * scale)) / scale);
         int scaledY = Math.round((y + Math.round(10 * scale)) / scale);
-        context.drawText(font, Text.literal("国军 · 突击兵"), scaledX, scaledY, OperationHudTheme.TEXT, true);
+        context.drawText(font, text("国军 · 突击兵"), scaledX, scaledY, OperationHudTheme.TEXT, true);
         context.getMatrices().pop();
 
         float health = HEALTH_ANIMATION.update(DATA.getHealthPercentage(), 0.14f);
@@ -209,9 +232,9 @@ public final class BattlefieldHudRenderer {
         context.getMatrices().push();
         context.getMatrices().scale(scale, scale, 1.0f);
         int healthLabelY = Math.round((y + Math.round(34 * scale)) / scale);
-        context.drawText(font, Text.literal("生命"), Math.round((x + padding) / scale), healthLabelY, OperationHudTheme.TEXT_DIM, false);
+        context.drawText(font, text("生命"), Math.round((x + padding) / scale), healthLabelY, OperationHudTheme.TEXT_DIM, false);
         String healthLabel = Math.round(DATA.getHealth()) + " / " + Math.round(DATA.getMaxHealth());
-        context.drawText(font, Text.literal(healthLabel), Math.round((x + width - padding - font.getWidth(healthLabel) * scale) / scale), healthLabelY, OperationHudTheme.TEXT, true);
+        context.drawText(font, text(healthLabel), Math.round((x + width - padding - font.getWidth(text(healthLabel)) * scale) / scale), healthLabelY, OperationHudTheme.TEXT, true);
         context.getMatrices().pop();
 
         int barWidth = width - Math.round(22 * scale);
@@ -223,65 +246,15 @@ public final class BattlefieldHudRenderer {
             context.getMatrices().push();
             context.getMatrices().scale(scale, scale, 1.0f);
             int armorY = Math.round((y + Math.round(61 * scale)) / scale);
-            context.drawText(font, Text.literal("护甲 " + Math.round(DATA.getArmor())), Math.round((x + padding + iconSize + Math.round(4 * scale)) / scale), armorY, OperationHudTheme.TEXT_DIM, false);
+            context.drawText(font, text("护甲 " + Math.round(DATA.getArmor())), Math.round((x + padding + iconSize + Math.round(4 * scale)) / scale), armorY, OperationHudTheme.TEXT_DIM, false);
             context.getMatrices().pop();
         }
     }
 
-    private static void renderWeaponPanel(DrawContext context, int screenWidth, int screenHeight) {
+    private static void renderKillFeed(DrawContext context, int screenWidth, int screenHeight) {
         TextRenderer font = CLIENT.textRenderer;
-        // 根据屏幕高度计算缩放因子
         float scale = calculateScale(screenHeight);
-        int baseWidth = 218;
-        int baseHeight = 76;
-        int baseMargin = 14;
-
-        int width = Math.round(baseWidth * scale);
-        int height = Math.round(baseHeight * scale);
-        int margin = Math.round(baseMargin * scale);
-        int x = screenWidth - width - margin;
-        int y = screenHeight - height - margin;
-
-        panel(context, x, y, width, height, OperationHudTheme.PANEL, OperationHudTheme.ATTACK);
-
-        int iconSize = Math.round(14 * scale);
-        int padding = Math.round(12 * scale);
-        drawIcon(context, x + padding, y + padding, Icon.RIFLE, OperationHudTheme.TEXT);
-
-        context.getMatrices().push();
-        context.getMatrices().scale(scale, scale, 1.0f);
-        int scaledX = Math.round((x + padding + iconSize + Math.round(13 * scale)) / scale);
-        int scaledY = Math.round((y + Math.round(11 * scale)) / scale);
-        context.drawText(font, Text.literal(abbreviate(DATA.getWeaponName(), 20)), scaledX, scaledY, OperationHudTheme.TEXT, true);
-        context.drawText(font, Text.literal("主武器"), scaledX, Math.round((y + Math.round(24 * scale)) / scale), OperationHudTheme.TEXT_DIM, false);
-        context.getMatrices().pop();
-
-        int ammo = DATA.getAmmo();
-        int reserve = DATA.getAmmoReserve();
-        if (ammo > 0 || reserve > 0) {
-            int ammoColor = ammo < 8 ? OperationHudTheme.DANGER : OperationHudTheme.TEXT;
-            context.getMatrices().push();
-            context.getMatrices().translate(x + Math.round(15 * scale), y + Math.round(43 * scale), 0);
-            context.getMatrices().scale(1.55f * scale, 1.55f * scale, 1.0f);
-            context.drawText(font, Text.literal(String.valueOf(ammo)), 0, 0, ammoColor, true);
-            context.getMatrices().pop();
-
-            context.getMatrices().push();
-            context.getMatrices().scale(scale, scale, 1.0f);
-            context.drawText(font, Text.literal("/ " + reserve), Math.round((x + Math.round(72 * scale)) / scale), Math.round((y + Math.round(51 * scale)) / scale), OperationHudTheme.TEXT_DIM, true);
-            context.getMatrices().pop();
-        } else {
-            context.getMatrices().push();
-            context.getMatrices().scale(scale, scale, 1.0f);
-            context.drawText(font, Text.literal("标准配备"), Math.round((x + padding) / scale), Math.round((y + Math.round(50 * scale)) / scale), OperationHudTheme.TEXT_DIM, false);
-            context.getMatrices().pop();
-        }
-        context.fill(x + padding, y + Math.round(66 * scale), x + width - padding, y + Math.round(67 * scale), 0x50FFFFFF);
-    }
-
-    private static void renderKillFeed(DrawContext context, int screenWidth) {
-        TextRenderer font = CLIENT.textRenderer;
-        int y = 116;
+        int y = Math.round(14 * scale) + Math.round(76 * scale) + 10; // 位于玩家面板下方
         for (KillFeedEntry entry : DATA.getKillFeed()) {
             float alpha = entry.getAlpha();
             if (alpha <= 0.02f) continue;
@@ -290,15 +263,15 @@ public final class BattlefieldHudRenderer {
             String killer = entry.getKiller();
             String victim = entry.getVictim();
             String weapon = entry.isHeadshot() ? "★" : "✦";
-            int width = Math.max(174, font.getWidth(killer) + font.getWidth(victim) + 52);
+            int width = Math.max(174, font.getWidth(text(killer)) + font.getWidth(text(victim)) + 52);
             int x = screenWidth - width - 14 + slide;
             int alphaByte = Math.round(alpha * 185) << 24;
             context.fill(x, y, x + width, y + 19, alphaByte | 0x10161B);
             int killerColor = entry.isFriendly() ? OperationHudTheme.ATTACK_BRIGHT : OperationHudTheme.DEFENSE_BRIGHT;
-            context.drawText(font, Text.literal(killer), x + 7, y + 6, withAlpha(killerColor, Math.round(alpha * 255)), true);
+            context.drawText(font, text(killer), x + 7, y + 6, withAlpha(killerColor, Math.round(alpha * 255)), true);
             centered(context, font, weapon, x + width / 2, y + 6, withAlpha(OperationHudTheme.TEXT, Math.round(alpha * 255)), false);
             int victimColor = entry.isFriendly() ? OperationHudTheme.DEFENSE_BRIGHT : OperationHudTheme.ATTACK_BRIGHT;
-            context.drawText(font, Text.literal(victim), x + width - 7 - font.getWidth(victim), y + 6, withAlpha(victimColor, Math.round(alpha * 255)), true);
+            context.drawText(font, text(victim), x + width - 7 - font.getWidth(text(victim)), y + 6, withAlpha(victimColor, Math.round(alpha * 255)), true);
             context.fill(x, y, x + 2, y + 19, withAlpha(killerColor, Math.round(alpha * 255)));
             y += 23;
         }
@@ -322,7 +295,7 @@ public final class BattlefieldHudRenderer {
         if (message == null) return;
         TextRenderer font = CLIENT.textRenderer;
         String text = message.getMessage();
-        int width = Math.max(230, font.getWidth(text) + 50);
+        int width = Math.max(230, font.getWidth(text(text)) + 50);
         int x = (screenWidth - width) / 2;
         int y = screenHeight / 2 - 104;
         panel(context, x, y, width, 30, 0xE00E1419, message.getType().getColor());
@@ -331,21 +304,18 @@ public final class BattlefieldHudRenderer {
     }
 
     private static void panel(DrawContext context, int x, int y, int width, int height, int background, int accent) {
-        context.fill(x, y, x + width, y + height, background);
-        context.fill(x, y, x + width, y + 1, withAlpha(accent, 210));
-        context.fill(x, y + height - 1, x + width, y + height, 0x4CFFFFFF);
-        context.fill(x, y, x + 1, y + height, 0x4CFFFFFF);
-        context.fill(x + width - 1, y, x + width, y + height, 0x4CFFFFFF);
+        context.drawGuiTexture(PANEL_TEXTURE, x, y, width, height);
     }
 
     private static void progressBar(DrawContext context, int x, int y, int width, int height, float value, int color) {
-        context.fill(x, y, x + width, y + height, OperationHudTheme.PANEL_INSET);
-        context.fill(x, y, x + Math.round(width * Math.clamp(value, 0f, 1f)), y + height, color);
-        context.fill(x, y + height - 1, x + width, y + height, 0x52FFFFFF);
+        context.drawGuiTexture(BAR_BG_TEXTURE, x, y, width, height);
+        int fillWidth = Math.round(width * Math.clamp(value, 0f, 1f));
+        if (fillWidth > 0) {
+            context.drawGuiTexture(BAR_FG_TEXTURE, x, y, fillWidth, height, color);
+        }
     }
-
     private static void centered(DrawContext context, TextRenderer font, String text, int x, int y, int color, boolean shadow) {
-        context.drawText(font, Text.literal(text), x - font.getWidth(text) / 2, y, color, shadow);
+        context.drawText(font, text(text), x - font.getWidth(text(text)) / 2, y, color, shadow);
     }
 
     private static int withAlpha(int color, int alpha) {
@@ -358,15 +328,16 @@ public final class BattlefieldHudRenderer {
     }
 
     private static void drawIcon(DrawContext context, int x, int y, Icon icon, int color) {
-        switch (icon) {
-            case FLAG -> { context.fill(x + 2, y, x + 3, y + 13, color); context.fill(x + 3, y + 1, x + 11, y + 5, color); context.fill(x + 7, y + 5, x + 11, y + 7, color); }
-            case SHIELD -> { context.fill(x + 2, y, x + 12, y + 3, color); context.fill(x + 3, y + 3, x + 11, y + 10, color); context.fill(x + 5, y + 10, x + 9, y + 13, color); }
-            case SOLDIER -> { context.fill(x + 5, y, x + 10, y + 5, color); context.fill(x + 3, y + 5, x + 12, y + 10, color); context.fill(x + 1, y + 10, x + 14, y + 13, color); }
-            case ARMOR -> { context.fill(x + 3, y, x + 11, y + 3, color); context.fill(x + 2, y + 3, x + 12, y + 11, color); context.fill(x + 4, y + 11, x + 10, y + 14, color); }
-            case RIFLE -> { context.fill(x, y + 6, x + 15, y + 9, color); context.fill(x + 3, y + 3, x + 8, y + 6, color); context.fill(x + 11, y + 9, x + 13, y + 14, color); }
-            case CROSS -> { context.fill(x + 6, y, x + 9, y + 15, color); context.fill(x, y + 6, x + 15, y + 9, color); }
-        }
+        Identifier texture = switch (icon) {
+            case FLAG -> ICON_FLAG;
+            case SHIELD -> ICON_SHIELD;
+            case SOLDIER -> ICON_SOLDIER;
+            case ARMOR -> ICON_ARMOR;
+            case CROSS -> ICON_CROSS;
+        };
+        // Draw 16x16 icon
+        context.drawGuiTexture(texture, x, y, 16, 16, color);
     }
 
-    private enum Icon { FLAG, SHIELD, SOLDIER, ARMOR, RIFLE, CROSS }
+    private enum Icon { FLAG, SHIELD, SOLDIER, ARMOR, CROSS }
 }
