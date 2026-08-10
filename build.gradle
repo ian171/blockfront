@@ -59,6 +59,11 @@ java {
 	targetCompatibility = JavaVersion.VERSION_21
 }
 
+// 禁用测试失败警告（项目当前没有测试）
+test {
+	enabled = false
+}
+
 jar {
 	def projectName = project.name
 	inputs.property "projectName", projectName

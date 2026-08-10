@@ -1,4 +1,4 @@
-﻿{
+{
 	"required": true,
 	"package": "cn.epicmc.client.mixin",
 	"compatibilityLevel": "JAVA_21",

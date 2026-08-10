@@ -32,13 +32,13 @@ java ConfigServerExample
 
 客户端将自动连接配置服务器并应用设置。
 
-详细指南请查看 [QUICKSTART.md](QUICKSTART.md)
+详细指南请查看 [QUICKSTART.md](docs/QUICKSTART.md)
 
 ## 📖 文档
 
-- [快速开始指南](QUICKSTART.md) - 5分钟上手
-- [网络协议文档](PROTOCOL.md) - 协议详细说明
-- [配置系统文档](README_CONFIG.md) - 高级配置
+- [快速开始指南](docs/QUICKSTART.md) - 5分钟上手
+- [网络协议文档](docs/PROTOCOL.md) - 协议详细说明
+- [配置系统文档](docs/README_CONFIG.md) - 高级配置
 
 ## 🎯 使用场景
 
