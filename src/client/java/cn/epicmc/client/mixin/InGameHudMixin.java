@@ -17,4 +17,10 @@ public class InGameHudMixin {
         // 渲染战地风格 HUD
         BattlefieldHudRenderer.render(context, tickCounter.getTickDelta(false));
     }
+
+    @Inject(method = "renderStatusBars", at = @At("HEAD"), cancellable = true)
+    private void hideVanillaStatusBars(DrawContext context, CallbackInfo ci) {
+        // 自定义 HUD 已显示生命值与护甲，因此不再渲染原版生命、饥饿和护甲栏。
+        ci.cancel();
+    }
 }
