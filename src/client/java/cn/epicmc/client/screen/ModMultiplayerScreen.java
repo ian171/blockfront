@@ -121,7 +121,8 @@ public class ModMultiplayerScreen extends Screen {
 
         // 第一行：连接、编辑、删除按钮
         AxisGridWidget axisGridWidget = directionalLayoutWidget.add(new AxisGridWidget(308, 20, AxisGridWidget.DisplayAxis.HORIZONTAL));
-        axisGridWidget.add(this.buttonJoin);
+        // 不添加连接按钮（宽度为 0）
+        // axisGridWidget.add(this.buttonJoin);
         if (editButtonWidth > 0) {
             axisGridWidget.add(this.buttonEdit);
         }

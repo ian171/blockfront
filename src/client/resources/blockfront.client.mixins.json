@@ -3,14 +3,17 @@
 	"package": "cn.epicmc.client.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
+		"ButtonStyleMixin",
+		"ChatHudMixin",
+		"ClickWeigh",
 		"ExampleClientMixin",
 		"GameOptionScreen",
+		"InGameHudMixin",
+		"LivingEntityMixin",
 		"MultiplePlayers",
 		"SinglePlayerScreen",
 		"TitleScreen",
-		"InGameHudMixin",
-		"LivingEntityMixin",
-		"ChatHudMixin"
+		"ClickableWidgetAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 1
