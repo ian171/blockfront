@@ -39,7 +39,7 @@ public class HudDataManager {
     // 游戏状态
     @Deprecated
     private String gameMode = "";
-    private GameModeType gameModeType;
+    private GameModeType gameModeType = GameModeType.ACTION;  // 默认为行动模式
     private int remainingTime = 0;  // 剩余时间（秒）
     private int score = 0;          // 个人分数
     private int tickets;

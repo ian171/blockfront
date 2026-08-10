@@ -199,12 +199,18 @@ public class UdpHudClient {
             byte[] gameModeBytes = new byte[gameModeLen];
             buffer.get(gameModeBytes);
             String gameMode = new String(gameModeBytes, StandardCharsets.UTF_8);
-            GameModeType modernType = GameModeType.valueOf(gameMode);
-            if (gameMode.equals("行动模式")){
-                modernType = GameModeType.ACTION;
-            }else if (gameMode.equals("夺点模式")){
-                modernType = GameModeType.CONTEST;
+            GameModeType modernType = GameModeType.ACTION;
+            try {
+                modernType = GameModeType.valueOf(gameMode);
+                if (gameMode.equals("行动模式")) {
+                    modernType = GameModeType.ACTION;
+                } else if (gameMode.equals("夺点模式")) {
+                    modernType = GameModeType.CONTEST;
+                }
+            } catch (IllegalArgumentException e) {
+                BlockFront.LOGGER.error("Encountered an unexcepted error",e);
             }
+
             int remainingTime = buffer.getInt();
             int score = buffer.getInt();
 

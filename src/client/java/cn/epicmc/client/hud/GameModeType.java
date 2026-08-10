@@ -12,4 +12,11 @@ public enum GameModeType {
     public String getString() {
         return string;
     }
+    public static String getDefault(String string){
+        try {
+            return valueOf(string).getString();
+        } catch (IllegalArgumentException e) {
+            return string;
+        }
+    }
 }
