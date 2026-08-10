@@ -40,6 +40,9 @@ public class HudDataManager {
     private String gameMode = "";
     private int remainingTime = 0;  // 剩余时间（秒）
     private int score = 0;          // 个人分数
+    private int tickets;
+    private int wave;
+    private int maxWaves = 1;
 
     private HudDataManager() {}
 
@@ -213,6 +216,16 @@ public class HudDataManager {
     public int getScore() {
         return score;
     }
+
+    public void setOperationState(int tickets, int wave, int maxWaves) {
+        this.tickets = Math.max(0, tickets);
+        this.wave = Math.max(0, wave);
+        this.maxWaves = Math.max(1, maxWaves);
+    }
+
+    public int getTickets() { return tickets; }
+    public int getWave() { return wave; }
+    public int getMaxWaves() { return maxWaves; }
 
     // ========== 内部类 ==========
 

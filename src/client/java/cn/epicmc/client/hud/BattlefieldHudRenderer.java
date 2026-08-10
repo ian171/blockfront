@@ -1,394 +1,288 @@
 package cn.epicmc.client.hud;
 
-import cn.epicmc.client.hud.HudDataManager.*;
+import cn.epicmc.client.deployment.DeploymentManager;
+import cn.epicmc.client.downed.DownedManager;
+import cn.epicmc.client.hud.HudDataManager.CapturePoint;
+import cn.epicmc.client.hud.HudDataManager.CaptureState;
+import cn.epicmc.client.hud.HudDataManager.KillFeedEntry;
+import cn.epicmc.client.hud.HudDataManager.StatusMessage;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
-import net.minecraft.util.math.MathHelper;
 
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
- * 战地风格 HUD 渲染器
- * 提供现代化、动态的战场界面
+ * A full-screen Battlefield-inspired HUD for Shanghai 1937 Operation.
+ * Data comes from HudDataManager; rendering is deliberately client-only and frame-driven.
  */
-public class BattlefieldHudRenderer {
-    private static final MinecraftClient client = MinecraftClient.getInstance();
-    private static final HudDataManager dataManager = HudDataManager.getInstance();
+public final class BattlefieldHudRenderer {
+    private static final MinecraftClient CLIENT = MinecraftClient.getInstance();
+    private static final HudDataManager DATA = HudDataManager.getInstance();
+    private static final Map<String, OperationHudAnimation> CAPTURE_ANIMATIONS = new HashMap<>();
+    private static final OperationHudAnimation HEALTH_ANIMATION = new OperationHudAnimation();
+    private static final OperationHudAnimation TICKET_ANIMATION = new OperationHudAnimation();
+    private static float pulse;
 
-    // 颜色定义
-    private static final int COLOR_FRIENDLY = 0x4A90E2;
-    private static final int COLOR_ENEMY = 0xE74C3C;
-    private static final int COLOR_NEUTRAL = 0xBDC3C7;
-    private static final int COLOR_WHITE = 0xFFFFFF;
-    private static final int COLOR_WARNING = 0xF39C12;
-    private static final int COLOR_SUCCESS = 0x2ECC71;
+    private BattlefieldHudRenderer() { }
 
-    // 缩放比例
-    private static final float HUD_SCALE = 0.75f;
-
-    // 动画
-    private static float pulseAnimation = 0f;
-    private static float healthBarAnimation = 1f;
-
-    /**
-     * 渲染主 HUD
-     */
     public static void render(DrawContext context, float tickDelta) {
-        if (client.player == null || client.options.hudHidden) {
-            return;
-        }
+        if (CLIENT.player == null || CLIENT.options.hudHidden) return;
+        syncLocalPlayerData();
+        DATA.updateKillFeed();
+        pulse = (pulse + tickDelta * 0.055f) % 1.0f;
 
-        int screenWidth = context.getScaledWindowWidth();
-        int screenHeight = context.getScaledWindowHeight();
-
-        updateAnimations(tickDelta);
-        dataManager.updateKillFeed();
-
-        // 同步玩家血量和弹药
-        syncPlayerData();
-
-        context.getMatrices().push();
-        context.getMatrices().scale(HUD_SCALE, HUD_SCALE, 1.0f);
-
-        int scaledWidth = (int) (screenWidth / HUD_SCALE);
-        int scaledHeight = (int) (screenHeight / HUD_SCALE);
-
-        // 移除 renderTopBar 和 renderTeamInfo
-        renderCapturePoints(context, scaledWidth, scaledHeight);
-        renderKillFeed(context, scaledWidth, scaledHeight);
-        renderHealthBar(context, scaledWidth, scaledHeight);
-        renderAmmoCounter(context, scaledWidth, scaledHeight);
-        renderStatusMessage(context, scaledWidth, scaledHeight);
-
-        context.getMatrices().pop();
+        int width = context.getScaledWindowWidth();
+        int height = context.getScaledWindowHeight();
+        renderBattleHeader(context, width);
+        renderCaptureStrip(context, width);
+        renderKillFeed(context, width);
+        renderPlayerPanel(context, height);
+        renderWeaponPanel(context, width, height);
+        renderObjectiveOverlay(context, width, height);
+        renderStatusMessage(context, width, height);
     }
 
-    /**
-     * 同步玩家数据（从游戏内获取）
-     */
-    private static void syncPlayerData() {
-        if (client.player == null) return;
-
-        // 同步血量
-        float health = client.player.getHealth();
-        float maxHealth = client.player.getMaxHealth();
-        dataManager.setHealth(health, maxHealth);
-
-        // 同步护甲
-        float armor = client.player.getArmor();
-        dataManager.setArmor(armor);
-
-        // 获取主手物品
-        ItemStack mainHandStack = client.player.getMainHandStack();
-
-        // 同步当前手持武器名称
-        String weaponName = "";
-        if (mainHandStack != null && !mainHandStack.isEmpty()) {
-            weaponName = mainHandStack.getName().getString();
-        }
-        dataManager.setWeaponName(weaponName);
-
-        // 普通武器不显示弹药
-        dataManager.setAmmo(0, 0);
+    private static void syncLocalPlayerData() {
+        if (DownedManager.isDowned()) DATA.setHealth(0.0f, CLIENT.player.getMaxHealth());
+        else DATA.setHealth(CLIENT.player.getHealth(), CLIENT.player.getMaxHealth());
+        DATA.setArmor(CLIENT.player.getArmor());
+        ItemStack stack = CLIENT.player.getMainHandStack();
+        DATA.setWeaponName(stack.isEmpty() ? "徒手" : stack.getName().getString());
     }
 
-    private static void updateAnimations(float tickDelta) {
-        pulseAnimation += tickDelta * 0.1f;
-        if (pulseAnimation > 2 * Math.PI) {
-            pulseAnimation -= 2 * Math.PI;
-        }
-        float targetHealth = dataManager.getHealthPercentage();
-        healthBarAnimation = MathHelper.lerp(0.1f, healthBarAnimation, targetHealth);
+    private static void renderDownedHud(DrawContext context, int width, int height) {
+        TextRenderer font = CLIENT.textRenderer;
+        int panelWidth = 360;
+        int x = (width - panelWidth) / 2;
+        int y = height - 105;
+        panel(context, x, y, panelWidth, 72, 0xDE170C0C, OperationHudTheme.DANGER);
+        drawIcon(context, x + 14, y + 16, Icon.CROSS, OperationHudTheme.DANGER);
+        context.drawText(font, Text.literal("你已倒地"), x + 38, y + 12, OperationHudTheme.TEXT, true);
+        String killer = "击倒者  " + DownedManager.killerName();
+        context.drawText(font, Text.literal(killer), x + 38, y + 28, OperationHudTheme.DANGER, true);
+        String weapon = "使用 " + DownedManager.weaponName();
+        context.drawText(font, Text.literal(weapon), x + 38, y + 43, OperationHudTheme.TEXT_DIM, false);
+        String timer = DownedManager.remainingSeconds() + " 秒";
+        context.drawText(font, Text.literal(timer), x + panelWidth - 16 - font.getWidth(timer), y + 14, OperationHudTheme.TEXT, true);
+        context.drawText(font, Text.literal("等待医疗兵救援"), x + panelWidth - 16 - font.getWidth("等待医疗兵救援"), y + 30, OperationHudTheme.TEXT_DIM, false);
+        int barX = x + 14;
+        int barY = y + 58;
+        progressBar(context, barX, barY, panelWidth - 28, 6, DownedManager.skipProgress(), OperationHudTheme.DANGER);
+        centered(context, font, "长按 空格 跳过倒地并部署", width / 2, y + 61, OperationHudTheme.TEXT, true);
     }
-
-    private static void renderTopBar(DrawContext context, int screenWidth, int screenHeight) {
-        TextRenderer textRenderer = client.textRenderer;
-        int barWidth = 250;
-        int barHeight = 25;
-        int x = (screenWidth - barWidth) / 2;
-        int y = 5;
-
-        drawTransparentRect(context, x, y, barWidth, barHeight, 0x80000000);
-        drawBorder(context, x, y, barWidth, barHeight, COLOR_FRIENDLY, 1);
-
-        String gameMode = dataManager.getGameMode();
-        if (!gameMode.isEmpty()) {
-            drawCenteredText(context, textRenderer, gameMode, screenWidth / 2, y + 4, COLOR_WHITE, true);
-        }
-
-        String time = dataManager.getFormattedTime();
-        int timeColor = dataManager.getRemainingTime() < 60 ? COLOR_WARNING : COLOR_WHITE;
-        drawCenteredText(context, textRenderer, time, screenWidth / 2, y + 14, timeColor, true);
-
-        String scoreText = "分数: " + dataManager.getScore();
-        context.drawText(textRenderer, Text.literal(scoreText), x + barWidth - 60, y + 9, COLOR_SUCCESS, true);
-    }
-
-    private static void renderTeamInfo(DrawContext context, int screenWidth, int screenHeight) {
-        TextRenderer textRenderer = client.textRenderer;
-        int x = 10;
-        int y = 35;
-        int width = 120;  // 缩小宽度
-        int height = 40;  // 缩小高度
-
-        drawTransparentRect(context, x, y, width, height, 0x90000000);
-
-        TeamData friendly = dataManager.getFriendlyTeam();
-        renderTeam(context, textRenderer, x + 5, y + 5, friendly);
-
-        context.fill(x + 5, y + 20, x + width - 5, y + 21, 0x60FFFFFF);
-
-        TeamData enemy = dataManager.getEnemyTeam();
-        renderTeam(context, textRenderer, x + 5, y + 23, enemy);
-
-        drawBorder(context, x, y, width, height, COLOR_FRIENDLY, 1);
-    }
-
-    private static void renderTeam(DrawContext context, TextRenderer textRenderer, int x, int y, TeamData team) {
-        int color = team.getColor();
-        context.fill(x, y, x + 2, y + 14, color | 0xFF000000);
-        context.drawText(textRenderer, Text.literal(team.getName()), x + 6, y, color, true);
-        String playerText = team.getPlayerCount() + "/" + team.getMaxPlayers();
-        context.drawText(textRenderer, Text.literal(playerText), x + 6, y + 8, 0xFFCCCCCC, true);
-        // 移除票数显示
-    }
-
-    private static void renderCapturePoints(DrawContext context, int screenWidth, int screenHeight) {
-        List<CapturePoint> points = dataManager.getCapturePoints();
-        if (points.isEmpty()) return;
-
-        TextRenderer textRenderer = client.textRenderer;
-        int totalWidth = points.size() * 70 + (points.size() - 1) * 8;
-        int startX = (screenWidth - totalWidth) / 2;
-        int y = 90;
-
-        for (int i = 0; i < points.size(); i++) {
-            CapturePoint point = points.get(i);
-            int x = startX + i * 78;
-            renderCapturePoint(context, textRenderer, x, y, point);
-        }
-    }
-
-    private static void renderCapturePoint(DrawContext context, TextRenderer textRenderer, int x, int y, CapturePoint point) {
-        int width = 70;
-        int height = 40;
-
-        drawTransparentRect(context, x, y, width, height, 0x80000000);
-
-        String name = point.getName();
-        int nameColor = point.getState().getColor();
-        drawCenteredText(context, textRenderer, name, x + width / 2, y + 4, nameColor, true);
-
-        int barX = x + 8;
-        int barY = y + 16;
-        int barWidth = width - 16;
-        int barHeight = 12;
-
-        context.fill(barX, barY, barX + barWidth, barY + barHeight, 0x802C3E50);
-
-        int fillWidth = (int) (barWidth * point.getProgress());
-        int fillColor = point.getState().getColor() | 0xCC000000;
-        if (fillWidth > 0) {
-            context.fill(barX, barY, barX + fillWidth, barY + barHeight, fillColor);
-        }
-
-        drawBorder(context, barX, barY, barWidth, barHeight, 0x60FFFFFF, 1);
-
-        if (point.getCapturingPlayers() > 0) {
-            String capText = "+" + point.getCapturingPlayers();
-            drawCenteredText(context, textRenderer, capText, x + width / 2, y + 30, 0xFFFFFFFF, true);
-        }
-
-        drawBorder(context, x, y, width, height, nameColor, 1);
-    }
-
-    private static void renderKillFeed(DrawContext context, int screenWidth, int screenHeight) {
-        List<KillFeedEntry> entries = dataManager.getKillFeed();
-        if (entries.isEmpty()) return;
-
-        TextRenderer textRenderer = client.textRenderer;
-        int x = screenWidth - 210;  // 缩小宽度
-        int y = 35;
-
-        for (KillFeedEntry entry : entries) {
-            float alpha = entry.getAlpha();
-            if (alpha <= 0) continue;
-
-            long age = System.currentTimeMillis() - entry.getTimestamp();
-            float slideProgress = Math.min(1.0f, age / 200.0f);
-            int slideOffset = (int) ((1.0f - slideProgress) * 50);
-
-            renderKillFeedEntry(context, textRenderer, x + slideOffset, y, entry, alpha);
-            y += 18;  // 减小间距
-        }
-    }
-
-    private static void renderKillFeedEntry(DrawContext context, TextRenderer textRenderer, int x, int y, KillFeedEntry entry, float alpha) {
-        int width = 200;  // 缩小宽度
-        int height = 15;  // 缩小高度
-
-        int bgAlpha = (int) (alpha * 144);
-        drawTransparentRect(context, x, y, width, height, (bgAlpha << 24) | 0x000000);
-
-        int textAlpha = (int) (alpha * 255) << 24;
-
-        int killerColor = entry.isFriendly() ? COLOR_FRIENDLY : COLOR_ENEMY;
-        context.drawText(textRenderer, Text.literal(entry.getKiller()), x + 3, y + 4, (textAlpha | killerColor), false);
-
-        String weapon = entry.getWeapon();
-        if (entry.isHeadshot()) {
-            weapon += " HS";
-        }
-        context.drawText(textRenderer, Text.literal(weapon), x + 75, y + 4, (textAlpha | 0xFFFFFF), false);
-
-        int victimColor = entry.isFriendly() ? COLOR_ENEMY : COLOR_FRIENDLY;
-        int victimX = x + width - textRenderer.getWidth(entry.getVictim()) - 3;
-        context.drawText(textRenderer, Text.literal(entry.getVictim()), victimX, y + 4, (textAlpha | victimColor), false);
-
-        int borderColor = entry.isFriendly() ? COLOR_FRIENDLY : COLOR_ENEMY;
-        drawBorder(context, x, y, width, height, (textAlpha | borderColor), 1);
-    }
-
-    private static void renderHealthBar(DrawContext context, int screenWidth, int screenHeight) {
-        TextRenderer textRenderer = client.textRenderer;
-        int x = 10;
-        int y = screenHeight - 65;
-        int width = 160;
-        int height = 50;
-
-        drawTransparentRect(context, x, y, width, height, 0x90000000);
-        context.drawText(textRenderer, Text.literal("生命值"), x + 8, y + 4, COLOR_WHITE, true);
-
-        int barX = x + 8;
-        int barY = y + 15;
-        int barWidth = width - 16;
-        int barHeight = 16;
-
-        context.fill(barX, barY, barX + barWidth, barY + barHeight, 0x802C3E50);
-
-        int fillWidth = (int) (barWidth * healthBarAnimation);
-        int healthColor = getHealthColor(healthBarAnimation);
-        if (fillWidth > 0) {
-            context.fill(barX, barY, barX + fillWidth, barY + barHeight, healthColor | 0xEE000000);
-        }
-
-        drawBorder(context, barX, barY, barWidth, barHeight, 0x60FFFFFF, 1);
-
-        String healthText = String.format("%.0f / %.0f", dataManager.getHealth(), dataManager.getMaxHealth());
-        drawCenteredText(context, textRenderer, healthText, barX + barWidth / 2, barY + 5, COLOR_WHITE, true);
-
-        float armor = dataManager.getArmor();
-        if (armor > 0) {
-            String armorText = "护甲: " + String.format("%.0f", armor);
-            context.drawText(textRenderer, Text.literal(armorText), x + 8, y + 35, 0xFFECF0F1, true);
-        }
-
-        int borderColor = COLOR_FRIENDLY;
-        if (healthBarAnimation < 0.3f) {
-            float pulse = (float) Math.sin(pulseAnimation * 4) * 0.5f + 0.5f;
-            borderColor = lerpColor(COLOR_WARNING, COLOR_ENEMY, pulse);
-        }
-        drawBorder(context, x, y, width, height, borderColor, 1);
-    }
-
-    private static void renderAmmoCounter(DrawContext context, int screenWidth, int screenHeight) {
-        TextRenderer textRenderer = client.textRenderer;
-        int x = screenWidth - 170;
-        int y = screenHeight - 65;
-        int width = 160;
-        int height = 50;
-
-        drawTransparentRect(context, x, y, width, height, 0x90000000);
-
-        String weaponName = dataManager.getWeaponName();
-        if (!weaponName.isEmpty()) {
-            context.drawText(textRenderer, Text.literal(weaponName), x + 8, y + 4, COLOR_WHITE, true);
-        }
-
-        int currentAmmo = dataManager.getAmmo();
-        int reserveAmmo = dataManager.getAmmoReserve();
-
-        // 只有当有弹药数据时才显示
-        if (currentAmmo > 0 || reserveAmmo > 0) {
-            String ammoText = String.valueOf(currentAmmo);
-            int ammoColor = currentAmmo == 0 ? COLOR_ENEMY : COLOR_WHITE;
-
-            context.getMatrices().push();
-            context.getMatrices().translate(x + 25, y + 22, 0);
-            context.getMatrices().scale(1.8f, 1.8f, 1.0f);
-            context.drawText(textRenderer, Text.literal(ammoText), 0, 0, ammoColor, true);
-            context.getMatrices().pop();
-
-            String reserveText = "/ " + reserveAmmo;
-            context.drawText(textRenderer, Text.literal(reserveText), x + 80, y + 30, COLOR_NEUTRAL, true);
-
-            if (currentAmmo < 10 && currentAmmo > 0) {
-                float pulse = (float) Math.sin(pulseAnimation * 4) * 0.5f + 0.5f;
-                int warningAlpha = (int) (pulse * 80);
-                context.fill(x, y, x + width, y + height, (warningAlpha << 24) | 0xFF0000);
+    private static void renderDeploymentHud(DrawContext context, int width, int height) {
+        TextRenderer font = CLIENT.textRenderer;
+        String phase = DeploymentManager.descending() ? "正在部署" : "高空战术观察";
+        centered(context, font, phase, width / 2, 48, OperationHudTheme.TEXT, true);
+        if (DeploymentManager.selecting()) {
+            centered(context, font, "选择下方出生点以投入战场", width / 2, 63, OperationHudTheme.TEXT_DIM, false);
+            for (cn.epicmc.client.deployment.DeploymentManager.DeploymentTarget target : DeploymentManager.targets()) {
+                int distance = (int) CLIENT.player.getPos().distanceTo(target.position());
+                // Target cards in DeploymentScreen provide interaction; this is the persistent 3D-view label.
+                centered(context, font, target.name() + "  " + distance + "m", width / 2, height - 103, OperationHudTheme.ATTACK_BRIGHT, true);
+                break;
             }
         }
+    }
+    private static void renderBattleHeader(DrawContext context, int screenWidth) {
+        TextRenderer font = CLIENT.textRenderer;
+        int width = 388;
+        int height = 47;
+        int x = (screenWidth - width) / 2;
+        int y = 10;
+        panel(context, x, y, width, height, OperationHudTheme.PANEL, OperationHudTheme.NEUTRAL);
+        context.fill(x, y, x + 5, y + height, OperationHudTheme.ATTACK);
+        context.fill(x + width - 5, y, x + width, y + height, OperationHudTheme.DEFENSE);
+        drawIcon(context, x + 18, y + 14, Icon.SHIELD, OperationHudTheme.ATTACK_BRIGHT);
+        drawIcon(context, x + width - 28, y + 14, Icon.SHIELD, OperationHudTheme.DEFENSE_BRIGHT);
 
-        drawBorder(context, x, y, width, height, COLOR_FRIENDLY, 1);
+        int tickets = Math.round(TICKET_ANIMATION.update(DATA.getTickets(), 0.15f));
+        String attack = "国军  " + tickets;
+        String defense = "日军";
+        context.drawText(font, Text.literal(attack), x + 33, y + 10, OperationHudTheme.ATTACK_BRIGHT, true);
+        context.drawText(font, Text.literal(defense), x + width - 33 - font.getWidth(defense), y + 10, OperationHudTheme.DEFENSE_BRIGHT, true);
+        String phase = DATA.getGameMode().isBlank() ? "上海 1937 · 行动模式" : DATA.getGameMode();
+        centered(context, font, phase, screenWidth / 2, y + 9, OperationHudTheme.TEXT, true);
+        String wave = "第 " + DATA.getWave() + " 波  /  " + Math.max(1, DATA.getMaxWaves());
+        centered(context, font, wave, screenWidth / 2, y + 29, OperationHudTheme.TEXT_DIM, false);
+        context.fill(x + 12, y + 40, x + width - 12, y + 41, 0x5CFFFFFF);
+    }
+
+    private static void renderCaptureStrip(DrawContext context, int screenWidth) {
+        List<CapturePoint> points = DATA.getCapturePoints().stream()
+                .sorted(Comparator.comparing(CapturePoint::getId))
+                .toList();
+        if (points.isEmpty()) return;
+        TextRenderer font = CLIENT.textRenderer;
+        int cardWidth = 86;
+        int gap = 7;
+        int totalWidth = points.size() * cardWidth + (points.size() - 1) * gap;
+        int startX = (screenWidth - totalWidth) / 2;
+        int y = 65;
+        for (int index = 0; index < points.size(); index++) {
+            CapturePoint point = points.get(index);
+            int x = startX + index * (cardWidth + gap);
+            int color = point.getState().getColor() | 0xFF000000;
+            boolean contested = point.getState() == CaptureState.FRIENDLY_CAPTURING || point.getState() == CaptureState.ENEMY_CAPTURING;
+            if (contested && ((int) (pulse * 8) & 1) == 0) color = OperationHudTheme.CAPTURING;
+            panel(context, x, y, cardWidth, 38, OperationHudTheme.PANEL_SOFT, color);
+            drawIcon(context, x + 7, y + 7, Icon.FLAG, color);
+            context.drawText(font, Text.literal(point.getId()), x + 23, y + 6, color, true);
+            String shortName = abbreviate(point.getName(), 9);
+            context.drawText(font, Text.literal(shortName), x + 7, y + 18, OperationHudTheme.TEXT_DIM, false);
+            int barX = x + 7;
+            int barY = y + 30;
+            int barWidth = cardWidth - 14;
+            float animated = CAPTURE_ANIMATIONS.computeIfAbsent(point.getId(), unused -> new OperationHudAnimation())
+                    .update(point.getProgress(), 0.12f);
+            context.fill(barX, barY, barX + barWidth, barY + 33, OperationHudTheme.PANEL_INSET);
+            context.fill(barX, barY, barX + Math.round(barWidth * animated), barY + 33, withAlpha(color, 220));
+            if (point.getCapturingPlayers() > 0) {
+                String count = "+" + point.getCapturingPlayers();
+                context.drawText(font, Text.literal(count), x + cardWidth - 7 - font.getWidth(count), y + 6, OperationHudTheme.TEXT, true);
+            }
+        }
+    }
+
+    private static void renderPlayerPanel(DrawContext context, int screenHeight) {
+        TextRenderer font = CLIENT.textRenderer;
+        int x = 14;
+        int y = screenHeight - 92;
+        int width = 210;
+        panel(context, x, y, width, 76, OperationHudTheme.PANEL, OperationHudTheme.ATTACK);
+        drawIcon(context, x + 11, y + 12, Icon.SOLDIER, OperationHudTheme.ATTACK_BRIGHT);
+        context.drawText(font, Text.literal("国军 · 突击兵"), x + 34, y + 10, OperationHudTheme.TEXT, true);
+        float health = HEALTH_ANIMATION.update(DATA.getHealthPercentage(), 0.14f);
+        int healthColor = health > 0.55f ? OperationHudTheme.SUCCESS : health > 0.25f ? OperationHudTheme.CAPTURING : OperationHudTheme.DANGER;
+        context.drawText(font, Text.literal("生命"), x + 11, y + 34, OperationHudTheme.TEXT_DIM, false);
+        String healthLabel = Math.round(DATA.getHealth()) + " / " + Math.round(DATA.getMaxHealth());
+        context.drawText(font, Text.literal(healthLabel), x + width - 12 - font.getWidth(healthLabel), y + 34, OperationHudTheme.TEXT, true);
+        progressBar(context, x + 11, y + 47, width - 22, 9, health, healthColor);
+        if (DATA.getArmor() > 0) {
+            drawIcon(context, x + 11, y + 61, Icon.ARMOR, OperationHudTheme.TEXT_DIM);
+            context.drawText(font, Text.literal("护甲 " + Math.round(DATA.getArmor())), x + 26, y + 61, OperationHudTheme.TEXT_DIM, false);
+        }
+    }
+
+    private static void renderWeaponPanel(DrawContext context, int screenWidth, int screenHeight) {
+        TextRenderer font = CLIENT.textRenderer;
+        int width = 218;
+        int x = screenWidth - width - 14;
+        int y = screenHeight - 92;
+        panel(context, x, y, width, 76, OperationHudTheme.PANEL, OperationHudTheme.ATTACK);
+        drawIcon(context, x + 12, y + 12, Icon.RIFLE, OperationHudTheme.TEXT);
+        context.drawText(font, Text.literal(abbreviate(DATA.getWeaponName(), 20)), x + 37, y + 11, OperationHudTheme.TEXT, true);
+        context.drawText(font, Text.literal("主武器"), x + 37, y + 24, OperationHudTheme.TEXT_DIM, false);
+        int ammo = DATA.getAmmo();
+        int reserve = DATA.getAmmoReserve();
+        if (ammo > 0 || reserve > 0) {
+            int ammoColor = ammo < 8 ? OperationHudTheme.DANGER : OperationHudTheme.TEXT;
+            context.getMatrices().push();
+            context.getMatrices().translate(x + 15, y + 43, 0);
+            context.getMatrices().scale(1.55f, 1.55f, 1.0f);
+            context.drawText(font, Text.literal(String.valueOf(ammo)), 0, 0, ammoColor, true);
+            context.getMatrices().pop();
+            context.drawText(font, Text.literal("/ " + reserve), x + 72, y + 51, OperationHudTheme.TEXT_DIM, true);
+        } else {
+            context.drawText(font, Text.literal("标准配备"), x + 12, y + 50, OperationHudTheme.TEXT_DIM, false);
+        }
+        context.fill(x + 12, y + 66, x + width - 12, y + 67, 0x50FFFFFF);
+    }
+
+    private static void renderKillFeed(DrawContext context, int screenWidth) {
+        TextRenderer font = CLIENT.textRenderer;
+        int y = 116;
+        for (KillFeedEntry entry : DATA.getKillFeed()) {
+            float alpha = entry.getAlpha();
+            if (alpha <= 0.02f) continue;
+            float age = (System.currentTimeMillis() - entry.getTimestamp()) / 220.0f;
+            int slide = Math.round((1.0f - OperationHudAnimation.easeOutCubic(age)) * 35);
+            String killer = entry.getKiller();
+            String victim = entry.getVictim();
+            String weapon = entry.isHeadshot() ? "★" : "✦";
+            int width = Math.max(174, font.getWidth(killer) + font.getWidth(victim) + 52);
+            int x = screenWidth - width - 14 + slide;
+            int alphaByte = Math.round(alpha * 185) << 24;
+            context.fill(x, y, x + width, y + 19, alphaByte | 0x10161B);
+            int killerColor = entry.isFriendly() ? OperationHudTheme.ATTACK_BRIGHT : OperationHudTheme.DEFENSE_BRIGHT;
+            context.drawText(font, Text.literal(killer), x + 7, y + 6, withAlpha(killerColor, Math.round(alpha * 255)), true);
+            centered(context, font, weapon, x + width / 2, y + 6, withAlpha(OperationHudTheme.TEXT, Math.round(alpha * 255)), false);
+            int victimColor = entry.isFriendly() ? OperationHudTheme.DEFENSE_BRIGHT : OperationHudTheme.ATTACK_BRIGHT;
+            context.drawText(font, Text.literal(victim), x + width - 7 - font.getWidth(victim), y + 6, withAlpha(victimColor, Math.round(alpha * 255)), true);
+            context.fill(x, y, x + 2, y + 19, withAlpha(killerColor, Math.round(alpha * 255)));
+            y += 23;
+        }
+    }
+
+    private static void renderObjectiveOverlay(DrawContext context, int screenWidth, int screenHeight) {
+        if (!CLIENT.player.isSpectator()) return;
+        TextRenderer font = CLIENT.textRenderer;
+        int width = 276;
+        int x = (screenWidth - width) / 2;
+        int y = screenHeight / 2 - 42;
+        panel(context, x, y, width, 84, 0xDC0B0E12, OperationHudTheme.DANGER);
+        drawIcon(context, x + width / 2 - 9, y + 12, Icon.CROSS, OperationHudTheme.DANGER);
+        centered(context, font, "等待增援", screenWidth / 2, y + 33, OperationHudTheme.TEXT, true);
+        centered(context, font, "复活后将自动回到前线", screenWidth / 2, y + 51, OperationHudTheme.TEXT_DIM, false);
+        centered(context, font, "观察队友，准备下一次进攻", screenWidth / 2, y + 66, OperationHudTheme.TEXT_DIM, false);
     }
 
     private static void renderStatusMessage(DrawContext context, int screenWidth, int screenHeight) {
-        StatusMessage message = dataManager.getStatusMessage();
+        StatusMessage message = DATA.getStatusMessage();
         if (message == null) return;
-
-        TextRenderer textRenderer = client.textRenderer;
+        TextRenderer font = CLIENT.textRenderer;
         String text = message.getMessage();
-        int textWidth = textRenderer.getWidth(text);
-
-        int x = (screenWidth - textWidth) / 2 - 10;
-        int y = screenHeight / 2 - 100;
-        int width = textWidth + 20;
-        int height = 25;
-
-        int bgColor = message.getType().getColor();
-        drawTransparentRect(context, x, y, width, height, 0xCC000000);
-        drawCenteredText(context, textRenderer, text, screenWidth / 2, y + 8, bgColor, true);
-        drawBorder(context, x, y, width, height, bgColor, 2);
+        int width = Math.max(230, font.getWidth(text) + 50);
+        int x = (screenWidth - width) / 2;
+        int y = screenHeight / 2 - 104;
+        panel(context, x, y, width, 30, 0xE00E1419, message.getType().getColor());
+        drawIcon(context, x + 12, y + 8, Icon.FLAG, message.getType().getColor());
+        centered(context, font, text, screenWidth / 2 + 8, y + 10, OperationHudTheme.TEXT, true);
     }
 
-    private static void drawTransparentRect(DrawContext context, int x, int y, int width, int height, int color) {
-        context.fill(x, y, x + width, y + height, color);
+    private static void panel(DrawContext context, int x, int y, int width, int height, int background, int accent) {
+        context.fill(x, y, x + width, y + height, background);
+        context.fill(x, y, x + width, y + 1, withAlpha(accent, 210));
+        context.fill(x, y + height - 1, x + width, y + height, 0x4CFFFFFF);
+        context.fill(x, y, x + 1, y + height, 0x4CFFFFFF);
+        context.fill(x + width - 1, y, x + width, y + height, 0x4CFFFFFF);
     }
 
-    private static void drawBorder(DrawContext context, int x, int y, int width, int height, int color, int thickness) {
-        context.fill(x, y, x + width, y + thickness, color | 0xFF000000);
-        context.fill(x, y + height - thickness, x + width, y + height, color | 0xFF000000);
-        context.fill(x, y, x + thickness, y + height, color | 0xFF000000);
-        context.fill(x + width - thickness, y, x + width, y + height, color | 0xFF000000);
+    private static void progressBar(DrawContext context, int x, int y, int width, int height, float value, int color) {
+        context.fill(x, y, x + width, y + height, OperationHudTheme.PANEL_INSET);
+        context.fill(x, y, x + Math.round(width * Math.clamp(value, 0f, 1f)), y + height, color);
+        context.fill(x, y + height - 1, x + width, y + height, 0x52FFFFFF);
     }
 
-    private static void drawCenteredText(DrawContext context, TextRenderer textRenderer, String text, int x, int y, int color, boolean shadow) {
-        int textWidth = textRenderer.getWidth(text);
-        context.drawText(textRenderer, Text.literal(text), x - textWidth / 2, y, color, shadow);
+    private static void centered(DrawContext context, TextRenderer font, String text, int x, int y, int color, boolean shadow) {
+        context.drawText(font, Text.literal(text), x - font.getWidth(text) / 2, y, color, shadow);
     }
 
-    private static int getHealthColor(float percentage) {
-        if (percentage > 0.6f) return COLOR_SUCCESS;
-        if (percentage > 0.3f) return COLOR_WARNING;
-        return COLOR_ENEMY;
+    private static int withAlpha(int color, int alpha) {
+        return (Math.clamp(alpha, 0, 255) << 24) | (color & 0x00FFFFFF);
     }
 
-    private static int lerpColor(int color1, int color2, float t) {
-        int r1 = (color1 >> 16) & 0xFF;
-        int g1 = (color1 >> 8) & 0xFF;
-        int b1 = color1 & 0xFF;
-
-        int r2 = (color2 >> 16) & 0xFF;
-        int g2 = (color2 >> 8) & 0xFF;
-        int b2 = color2 & 0xFF;
-
-        int r = (int) (r1 + (r2 - r1) * t);
-        int g = (int) (g1 + (g2 - g1) * t);
-        int b = (int) (b1 + (b2 - b1) * t);
-
-        return (r << 16) | (g << 8) | b;
+    private static String abbreviate(String value, int maximum) {
+        if (value == null || value.isBlank()) return "未装备";
+        return value.length() <= maximum ? value : value.substring(0, Math.max(1, maximum - 1)) + "…";
     }
+
+    private static void drawIcon(DrawContext context, int x, int y, Icon icon, int color) {
+        switch (icon) {
+            case FLAG -> { context.fill(x + 2, y, x + 3, y + 13, color); context.fill(x + 3, y + 1, x + 11, y + 5, color); context.fill(x + 7, y + 5, x + 11, y + 7, color); }
+            case SHIELD -> { context.fill(x + 2, y, x + 12, y + 3, color); context.fill(x + 3, y + 3, x + 11, y + 10, color); context.fill(x + 5, y + 10, x + 9, y + 13, color); }
+            case SOLDIER -> { context.fill(x + 5, y, x + 10, y + 5, color); context.fill(x + 3, y + 5, x + 12, y + 10, color); context.fill(x + 1, y + 10, x + 14, y + 13, color); }
+            case ARMOR -> { context.fill(x + 3, y, x + 11, y + 3, color); context.fill(x + 2, y + 3, x + 12, y + 11, color); context.fill(x + 4, y + 11, x + 10, y + 14, color); }
+            case RIFLE -> { context.fill(x, y + 6, x + 15, y + 9, color); context.fill(x + 3, y + 3, x + 8, y + 6, color); context.fill(x + 11, y + 9, x + 13, y + 14, color); }
+            case CROSS -> { context.fill(x + 6, y, x + 9, y + 15, color); context.fill(x, y + 6, x + 15, y + 9, color); }
+        }
+    }
+
+    private enum Icon { FLAG, SHIELD, SOLDIER, ARMOR, RIFLE, CROSS }
 }
