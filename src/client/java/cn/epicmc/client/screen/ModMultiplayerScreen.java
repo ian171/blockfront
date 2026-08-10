@@ -76,7 +76,7 @@ public class ModMultiplayerScreen extends Screen {
         }
 
         this.addDrawableChild(this.serverListWidget);
-        this.buttonJoin = this.addDrawableChild(ButtonWidget.builder(Text.translatable("selectServer.select"), button -> this.connect()).width(100).build());
+        this.buttonJoin = this.addDrawableChild(ButtonWidget.builder(Text.translatable("selectServer.select"), button -> this.connect()).width(0).build());
 
         // 根据配置决定编辑按钮宽度
         int editButtonWidth = config.isAllowEditServers() ? 74 : 0;
@@ -138,7 +138,7 @@ public class ModMultiplayerScreen extends Screen {
 
         // 第三行：选项按钮
         AxisGridWidget axisGridWidget3 = directionalLayoutWidget.add(new AxisGridWidget(308, 20, AxisGridWidget.DisplayAxis.VERTICAL));
-        axisGridWidget3.add(option);
+        axisGridWidget2.add(option);
 
         directionalLayoutWidget.refreshPositions();
         SimplePositioningWidget.setPos(directionalLayoutWidget, 0, this.height - 64, this.width, 64);

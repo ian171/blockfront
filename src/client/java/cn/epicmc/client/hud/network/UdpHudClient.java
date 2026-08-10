@@ -1,6 +1,7 @@
 package cn.epicmc.client.hud.network;
 
 import cn.epicmc.BlockFront;
+import cn.epicmc.client.hud.GameModeType;
 import cn.epicmc.client.hud.HudDataManager;
 import cn.epicmc.client.hud.HudDataManager.*;
 
@@ -198,11 +199,16 @@ public class UdpHudClient {
             byte[] gameModeBytes = new byte[gameModeLen];
             buffer.get(gameModeBytes);
             String gameMode = new String(gameModeBytes, StandardCharsets.UTF_8);
-
+            GameModeType modernType = GameModeType.valueOf(gameMode);
+            if (gameMode.equals("行动模式")){
+                modernType = GameModeType.ACTION;
+            }else if (gameMode.equals("夺点模式")){
+                modernType = GameModeType.CONTEST;
+            }
             int remainingTime = buffer.getInt();
             int score = buffer.getInt();
 
-            dataManager.setGameMode(gameMode);
+            dataManager.setGameMode(modernType);
             dataManager.setRemainingTime(remainingTime);
             dataManager.setScore(score);
         } catch (Exception e) {
