@@ -3,7 +3,7 @@
 	"package": "cn.epicmc.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
-		"ExampleMixin"
+
 	],
 	"injectors": {
 		"defaultRequire": 1
