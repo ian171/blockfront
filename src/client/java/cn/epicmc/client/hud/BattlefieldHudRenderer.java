@@ -209,8 +209,8 @@ public final class BattlefieldHudRenderer {
         int width = Math.round(baseWidth * scale);
         int height = Math.round(baseHeight * scale);
         int margin = Math.round(baseMargin * scale);
-        int x = screenWidth - width - margin;
-        int y = margin; // 移动到右上角
+        int x = margin;  // 左侧
+        int y = screenHeight - height - margin;  // 底部（左下角）
 
         panel(context, x, y, width, height, OperationHudTheme.PANEL, OperationHudTheme.ATTACK);
 
@@ -254,7 +254,7 @@ public final class BattlefieldHudRenderer {
     private static void renderKillFeed(DrawContext context, int screenWidth, int screenHeight) {
         TextRenderer font = CLIENT.textRenderer;
         float scale = calculateScale(screenHeight);
-        int y = Math.round(14 * scale) + Math.round(76 * scale) + 10; // 位于玩家面板下方
+        int y = Math.round(116 * scale);  // 从顶部开始，在占点条下方
         for (KillFeedEntry entry : DATA.getKillFeed()) {
             float alpha = entry.getAlpha();
             if (alpha <= 0.02f) continue;
