@@ -140,8 +140,8 @@ public final class BattlefieldHudRenderer {
         drawIcon(context, x + width - 28, y + 14, Icon.SHIELD, OperationHudTheme.DEFENSE_BRIGHT);
 
         int tickets = Math.round(TICKET_ANIMATION.update(DATA.getTickets(), 0.15f));
-        String attack = "国军  " + tickets;
-        String defense = "日军";
+        String attack = "日军  " + tickets;
+        String defense = "国军";
         context.drawText(font, text(attack), x + 33, y + 10, OperationHudTheme.ATTACK_BRIGHT, true);
         context.drawText(font, text(defense), x + width - 33 - font.getWidth(text(defense)), y + 10, OperationHudTheme.DEFENSE_BRIGHT, true);
         //String phase = DATA.getGameMode().isBlank() ? "上海 1937 · 行动模式" : DATA.getGameMode();
@@ -202,28 +202,28 @@ public final class BattlefieldHudRenderer {
         TextRenderer font = CLIENT.textRenderer;
         // 根据屏幕高度计算缩放因子
         float scale = calculateScale(screenHeight);
-        int baseWidth = 210;
-        int baseHeight = 76;
+        int baseWidth = 184;
+        int baseHeight = 48;
         int baseMargin = 14;
 
         int width = Math.round(baseWidth * scale);
         int height = Math.round(baseHeight * scale);
         int margin = Math.round(baseMargin * scale);
-        int x = screenWidth - width - margin;
-        int y = margin; // 移动到右上角
+        int x = margin;
+        int y = screenHeight - height - margin;
 
         panel(context, x, y, width, height, OperationHudTheme.PANEL, OperationHudTheme.ATTACK);
 
         // 缩放内部元素
-        int iconSize = Math.round(14 * scale);
-        int padding = Math.round(11 * scale);
-        drawIcon(context, x + padding, y + Math.round(12 * scale), Icon.SOLDIER, OperationHudTheme.ATTACK_BRIGHT);
+        int iconSize = Math.round(12 * scale);
+        int padding = Math.round(9 * scale);
+        drawIcon(context, x + padding, y + Math.round(8 * scale), Icon.SOLDIER, OperationHudTheme.ATTACK_BRIGHT);
 
         context.getMatrices().push();
         context.getMatrices().scale(scale, scale, 1.0f);
-        int scaledX = Math.round((x + padding + iconSize + Math.round(12 * scale)) / scale);
-        int scaledY = Math.round((y + Math.round(10 * scale)) / scale);
-        context.drawText(font, text("国军 · 突击兵"), scaledX, scaledY, OperationHudTheme.TEXT, true);
+        int scaledX = Math.round((x + padding + iconSize + Math.round(8 * scale)) / scale);
+        int scaledY = Math.round((y + Math.round(7 * scale)) / scale);
+        context.drawText(font, text("突击兵"), scaledX, scaledY, OperationHudTheme.TEXT, true);
         context.getMatrices().pop();
 
         float health = HEALTH_ANIMATION.update(DATA.getHealthPercentage(), 0.14f);
@@ -231,24 +231,16 @@ public final class BattlefieldHudRenderer {
 
         context.getMatrices().push();
         context.getMatrices().scale(scale, scale, 1.0f);
-        int healthLabelY = Math.round((y + Math.round(34 * scale)) / scale);
+        int healthLabelY = Math.round((y + Math.round(21 * scale)) / scale);
         context.drawText(font, text("生命"), Math.round((x + padding) / scale), healthLabelY, OperationHudTheme.TEXT_DIM, false);
         String healthLabel = Math.round(DATA.getHealth()) + " / " + Math.round(DATA.getMaxHealth());
         context.drawText(font, text(healthLabel), Math.round((x + width - padding - font.getWidth(text(healthLabel)) * scale) / scale), healthLabelY, OperationHudTheme.TEXT, true);
         context.getMatrices().pop();
 
-        int barWidth = width - Math.round(22 * scale);
-        int barHeight = Math.round(9 * scale);
-        progressBar(context, x + padding, y + Math.round(47 * scale), barWidth, barHeight, health, healthColor);
+        int barWidth = width - padding * 2;
+        int barHeight = Math.max(3, Math.round(4 * scale));
+        progressBar(context, x + padding, y + Math.round(35 * scale), barWidth, barHeight, health, healthColor);
 
-        if (DATA.getArmor() > 0) {
-            drawIcon(context, x + padding, y + Math.round(61 * scale), Icon.ARMOR, OperationHudTheme.TEXT_DIM);
-            context.getMatrices().push();
-            context.getMatrices().scale(scale, scale, 1.0f);
-            int armorY = Math.round((y + Math.round(61 * scale)) / scale);
-            context.drawText(font, text("护甲 " + Math.round(DATA.getArmor())), Math.round((x + padding + iconSize + Math.round(4 * scale)) / scale), armorY, OperationHudTheme.TEXT_DIM, false);
-            context.getMatrices().pop();
-        }
     }
 
     private static void renderKillFeed(DrawContext context, int screenWidth, int screenHeight) {

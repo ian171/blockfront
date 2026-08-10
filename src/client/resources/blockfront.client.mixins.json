@@ -9,7 +9,9 @@
 		"SinglePlayerScreen",
 		"TitleScreen",
 		"InGameHudMixin",
-		"LivingEntityMixin"
+		"LivingEntityMixin",
+		"MinecraftClientMixin",
+		"ChatHudMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
