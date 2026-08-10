@@ -56,6 +56,20 @@ public final class BattlefieldHudRenderer {
         DATA.setWeaponName(stack.isEmpty() ? "徒手" : stack.getName().getString());
     }
 
+    /**
+     * 计算 UI 缩放因子，根据屏幕高度自适应调整
+     * 基准高度: 720p (720像素)
+     * 最小缩放: 0.7 (适用于小窗口)
+     * 最大缩放: 1.3 (适用于4K等高分辨率)
+     */
+    private static float calculateScale(int screenHeight) {
+        final float BASE_HEIGHT = 720.0f;
+        final float MIN_SCALE = 0.7f;
+        final float MAX_SCALE = 1.3f;
+        float scale = screenHeight / BASE_HEIGHT;
+        return Math.clamp(scale, MIN_SCALE, MAX_SCALE);
+    }
+
     private static void renderDownedHud(DrawContext context, int width, int height) {
         TextRenderer font = CLIENT.textRenderer;
         int panelWidth = 360;
@@ -109,15 +123,14 @@ public final class BattlefieldHudRenderer {
         context.drawText(font, Text.literal(defense), x + width - 33 - font.getWidth(defense), y + 10, OperationHudTheme.DEFENSE_BRIGHT, true);
         //String phase = DATA.getGameMode().isBlank() ? "上海 1937 · 行动模式" : DATA.getGameMode();
         String phase;
-        switch (DATA.getGameModeType()){
-            case ACTION -> {
-                phase = "上海 1937 · 行动模式";
-            }
-            case CONTEST -> {
-                phase = "上海 1937 · 夺点模式";
-            }
-            default -> {
-                phase = DATA.getGameModeType().getString();
+        GameModeType modeType = DATA.getGameModeType();
+        if (modeType == null) {
+            phase = "上海 1937 · 行动模式";  // 默认显示
+        } else {
+            switch (modeType) {
+                case ACTION -> phase = "上海 1937 · 行动模式";
+                case CONTEST -> phase = "上海 1937 · 夺点模式";
+                default -> phase = modeType.getString();
             }
         }
         centered(context, font, phase, screenWidth / 2, y + 9, OperationHudTheme.TEXT, true);
@@ -164,47 +177,106 @@ public final class BattlefieldHudRenderer {
 
     private static void renderPlayerPanel(DrawContext context, int screenHeight) {
         TextRenderer font = CLIENT.textRenderer;
-        int x = 14;
-        int y = screenHeight - 92;
-        int width = 210;
-        panel(context, x, y, width, 76, OperationHudTheme.PANEL, OperationHudTheme.ATTACK);
-        drawIcon(context, x + 11, y + 12, Icon.SOLDIER, OperationHudTheme.ATTACK_BRIGHT);
-        context.drawText(font, Text.literal("国军 · 突击兵"), x + 34, y + 10, OperationHudTheme.TEXT, true);
+        // 根据屏幕高度计算缩放因子
+        float scale = calculateScale(screenHeight);
+        int baseWidth = 210;
+        int baseHeight = 76;
+        int baseMargin = 14;
+
+        int width = Math.round(baseWidth * scale);
+        int height = Math.round(baseHeight * scale);
+        int margin = Math.round(baseMargin * scale);
+        int x = margin;
+        int y = screenHeight - height - margin;
+
+        panel(context, x, y, width, height, OperationHudTheme.PANEL, OperationHudTheme.ATTACK);
+
+        // 缩放内部元素
+        int iconSize = Math.round(14 * scale);
+        int padding = Math.round(11 * scale);
+        drawIcon(context, x + padding, y + Math.round(12 * scale), Icon.SOLDIER, OperationHudTheme.ATTACK_BRIGHT);
+
+        context.getMatrices().push();
+        context.getMatrices().scale(scale, scale, 1.0f);
+        int scaledX = Math.round((x + padding + iconSize + Math.round(12 * scale)) / scale);
+        int scaledY = Math.round((y + Math.round(10 * scale)) / scale);
+        context.drawText(font, Text.literal("国军 · 突击兵"), scaledX, scaledY, OperationHudTheme.TEXT, true);
+        context.getMatrices().pop();
+
         float health = HEALTH_ANIMATION.update(DATA.getHealthPercentage(), 0.14f);
         int healthColor = health > 0.55f ? OperationHudTheme.SUCCESS : health > 0.25f ? OperationHudTheme.CAPTURING : OperationHudTheme.DANGER;
-        context.drawText(font, Text.literal("生命"), x + 11, y + 34, OperationHudTheme.TEXT_DIM, false);
+
+        context.getMatrices().push();
+        context.getMatrices().scale(scale, scale, 1.0f);
+        int healthLabelY = Math.round((y + Math.round(34 * scale)) / scale);
+        context.drawText(font, Text.literal("生命"), Math.round((x + padding) / scale), healthLabelY, OperationHudTheme.TEXT_DIM, false);
         String healthLabel = Math.round(DATA.getHealth()) + " / " + Math.round(DATA.getMaxHealth());
-        context.drawText(font, Text.literal(healthLabel), x + width - 12 - font.getWidth(healthLabel), y + 34, OperationHudTheme.TEXT, true);
-        progressBar(context, x + 11, y + 47, width - 22, 9, health, healthColor);
+        context.drawText(font, Text.literal(healthLabel), Math.round((x + width - padding - font.getWidth(healthLabel) * scale) / scale), healthLabelY, OperationHudTheme.TEXT, true);
+        context.getMatrices().pop();
+
+        int barWidth = width - Math.round(22 * scale);
+        int barHeight = Math.round(9 * scale);
+        progressBar(context, x + padding, y + Math.round(47 * scale), barWidth, barHeight, health, healthColor);
+
         if (DATA.getArmor() > 0) {
-            drawIcon(context, x + 11, y + 61, Icon.ARMOR, OperationHudTheme.TEXT_DIM);
-            context.drawText(font, Text.literal("护甲 " + Math.round(DATA.getArmor())), x + 26, y + 61, OperationHudTheme.TEXT_DIM, false);
+            drawIcon(context, x + padding, y + Math.round(61 * scale), Icon.ARMOR, OperationHudTheme.TEXT_DIM);
+            context.getMatrices().push();
+            context.getMatrices().scale(scale, scale, 1.0f);
+            int armorY = Math.round((y + Math.round(61 * scale)) / scale);
+            context.drawText(font, Text.literal("护甲 " + Math.round(DATA.getArmor())), Math.round((x + padding + iconSize + Math.round(4 * scale)) / scale), armorY, OperationHudTheme.TEXT_DIM, false);
+            context.getMatrices().pop();
         }
     }
 
     private static void renderWeaponPanel(DrawContext context, int screenWidth, int screenHeight) {
         TextRenderer font = CLIENT.textRenderer;
-        int width = 218;
-        int x = screenWidth - width - 14;
-        int y = screenHeight - 92;
-        panel(context, x, y, width, 76, OperationHudTheme.PANEL, OperationHudTheme.ATTACK);
-        drawIcon(context, x + 12, y + 12, Icon.RIFLE, OperationHudTheme.TEXT);
-        context.drawText(font, Text.literal(abbreviate(DATA.getWeaponName(), 20)), x + 37, y + 11, OperationHudTheme.TEXT, true);
-        context.drawText(font, Text.literal("主武器"), x + 37, y + 24, OperationHudTheme.TEXT_DIM, false);
+        // 根据屏幕高度计算缩放因子
+        float scale = calculateScale(screenHeight);
+        int baseWidth = 218;
+        int baseHeight = 76;
+        int baseMargin = 14;
+
+        int width = Math.round(baseWidth * scale);
+        int height = Math.round(baseHeight * scale);
+        int margin = Math.round(baseMargin * scale);
+        int x = screenWidth - width - margin;
+        int y = screenHeight - height - margin;
+
+        panel(context, x, y, width, height, OperationHudTheme.PANEL, OperationHudTheme.ATTACK);
+
+        int iconSize = Math.round(14 * scale);
+        int padding = Math.round(12 * scale);
+        drawIcon(context, x + padding, y + padding, Icon.RIFLE, OperationHudTheme.TEXT);
+
+        context.getMatrices().push();
+        context.getMatrices().scale(scale, scale, 1.0f);
+        int scaledX = Math.round((x + padding + iconSize + Math.round(13 * scale)) / scale);
+        int scaledY = Math.round((y + Math.round(11 * scale)) / scale);
+        context.drawText(font, Text.literal(abbreviate(DATA.getWeaponName(), 20)), scaledX, scaledY, OperationHudTheme.TEXT, true);
+        context.drawText(font, Text.literal("主武器"), scaledX, Math.round((y + Math.round(24 * scale)) / scale), OperationHudTheme.TEXT_DIM, false);
+        context.getMatrices().pop();
+
         int ammo = DATA.getAmmo();
         int reserve = DATA.getAmmoReserve();
         if (ammo > 0 || reserve > 0) {
             int ammoColor = ammo < 8 ? OperationHudTheme.DANGER : OperationHudTheme.TEXT;
             context.getMatrices().push();
-            context.getMatrices().translate(x + 15, y + 43, 0);
-            context.getMatrices().scale(1.55f, 1.55f, 1.0f);
+            context.getMatrices().translate(x + Math.round(15 * scale), y + Math.round(43 * scale), 0);
+            context.getMatrices().scale(1.55f * scale, 1.55f * scale, 1.0f);
             context.drawText(font, Text.literal(String.valueOf(ammo)), 0, 0, ammoColor, true);
             context.getMatrices().pop();
-            context.drawText(font, Text.literal("/ " + reserve), x + 72, y + 51, OperationHudTheme.TEXT_DIM, true);
+
+            context.getMatrices().push();
+            context.getMatrices().scale(scale, scale, 1.0f);
+            context.drawText(font, Text.literal("/ " + reserve), Math.round((x + Math.round(72 * scale)) / scale), Math.round((y + Math.round(51 * scale)) / scale), OperationHudTheme.TEXT_DIM, true);
+            context.getMatrices().pop();
         } else {
-            context.drawText(font, Text.literal("标准配备"), x + 12, y + 50, OperationHudTheme.TEXT_DIM, false);
+            context.getMatrices().push();
+            context.getMatrices().scale(scale, scale, 1.0f);
+            context.drawText(font, Text.literal("标准配备"), Math.round((x + padding) / scale), Math.round((y + Math.round(50 * scale)) / scale), OperationHudTheme.TEXT_DIM, false);
+            context.getMatrices().pop();
         }
-        context.fill(x + 12, y + 66, x + width - 12, y + 67, 0x50FFFFFF);
+        context.fill(x + padding, y + Math.round(66 * scale), x + width - padding, y + Math.round(67 * scale), 0x50FFFFFF);
     }
 
     private static void renderKillFeed(DrawContext context, int screenWidth) {

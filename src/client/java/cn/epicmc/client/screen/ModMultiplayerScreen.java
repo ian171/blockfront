@@ -159,7 +159,6 @@ public class ModMultiplayerScreen extends Screen {
         if (list != null) {
             this.serverListWidget.setLanServers(list);
         }
-
         this.serverListPinger.tick();
     }
 
