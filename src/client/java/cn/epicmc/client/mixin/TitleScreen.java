@@ -1,10 +1,12 @@
 package cn.epicmc.client.mixin;
 
+import cn.epicmc.BlockFront;
 import cn.epicmc.client.screen.ModMultiplayerScreen;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.realms.gui.screen.RealmsNotificationsScreen;
 import org.jetbrains.annotations.Nullable;
+import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -36,6 +38,7 @@ public class TitleScreen {
     private Element initWidgetsNormal(net.minecraft.client.gui.screen.TitleScreen instance, Element element) {
         //MinecraftClient.getInstance().setScreen(new ServerLinksScreen(null, new ServerLinks(List.of(ServerLinks.Entry.create(Text.empty(), new URI("mc.epicmc.cn"))))));
         MinecraftClient.getInstance().setScreen(new ModMultiplayerScreen(null));
+        MinecraftClient.getInstance().getWindow().setTitle("Eastline");
         return element;
     }
     // remove realms notifications

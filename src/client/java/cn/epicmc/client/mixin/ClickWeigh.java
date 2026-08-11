@@ -16,7 +16,7 @@ public abstract class ClickWeigh {
     protected int height;
 
     @Shadow
-    protected boolean active;
+    public boolean active;
 
     // 从父类 ClickableWidget 继承的方法
     @Shadow

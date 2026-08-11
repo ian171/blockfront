@@ -108,7 +108,7 @@ public class CustomOptionsScreen extends BaseOwoScreen<FlowLayout> {
 
     @Override
     public boolean shouldPause() {
-        return true;
+        return super.shouldPause();
     }
 
     @FunctionalInterface
